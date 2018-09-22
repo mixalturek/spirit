@@ -189,7 +189,7 @@ where
 ///
 /// This turns a `Fn(&Arc<Spirit>, &Request<Body>, &ExtraCfg) -> Response<Body>` into a
 /// `ConnAction`, so it can be fed into `cfg_helper`.
-pub fn service_fn_ok<F, S, O, C, ExtraCfg>(
+pub fn service_fn_ok<F, S, O, C, ExtraCfg, B>(
     f: F,
 ) -> impl ConnAction<
     S,
@@ -206,10 +206,8 @@ pub fn service_fn_ok<F, S, O, C, ExtraCfg>(
 >
 where
     // TODO: Make more generic ‒ return future, payload, ...
-    F: Fn(&Arc<Spirit<S, O, C>>, Request<Body>, &ExtraCfg) -> Response<Body>
-        + Send
-        + Sync
-        + 'static,
+    F: Fn(&Arc<Spirit<S, O, C>>, Request<Body>, &ExtraCfg) -> Response<B> + Send + Sync + 'static,
+    B: Payload + 'static,
     ExtraCfg: Clone + Debug + PartialEq + Send + 'static,
     S: Borrow<ArcSwap<C>> + Sync + Send + 'static,
     for<'de> C: Deserialize<'de> + Send + Sync + 'static,
@@ -220,7 +218,7 @@ where
         let spirit = Arc::clone(spirit);
         let extra_cfg = extra_cfg.clone();
         let f = Arc::clone(&f);
-        let svc = move |req: Request<Body>| -> Response<Body> { f(&spirit, req, &extra_cfg) };
+        let svc = move |req: Request<Body>| -> Response<_> { f(&spirit, req, &extra_cfg) };
         Ok((service::service_fn_ok(svc), Http::new()))
     }
 }
